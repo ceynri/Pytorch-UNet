@@ -31,7 +31,7 @@ def main():
     # prepare
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
-    device = torch.device('cuda:4' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if args.device:
         device = torch.device(args.device)
     logging.info(f'Using device {device}')
@@ -58,10 +58,12 @@ def main():
     try:
         train_net(net=net,
                   epochs=args.epochs,
+                  continue_epoch=args.continue_epoch,
                   batch_size=args.batchsize,
                   lr=args.lr,
                   device=device,
-                  img_scale=args.scale)
+                  img_scale=args.scale,
+                  cp_name=args.checkpointname)
     except KeyboardInterrupt:
         torch.save(net.state_dict(), './tmp/INTERRUPTED.pth')
         logging.info('Saved interrupt')
@@ -74,10 +76,12 @@ def main():
 def train_net(net,
               device,
               epochs=5,
+              continue_epoch=0,
               batch_size=1,
               lr=0.001,
               save_cp=True,
-              img_scale=1):
+              img_scale=1,
+              cp_name='CP'):
     # load dataset
     train_dataset = CityscapesDataset(dir_imgs_train, dir_masks_train, scale=img_scale)
     val_dataset = CityscapesDataset(dir_imgs_val, dir_masks_val, scale=img_scale)
@@ -105,7 +109,7 @@ def train_net(net,
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min' if net.n_classes > 1 else 'max', patience=2)
     criterion = nn.CrossEntropyLoss(ignore_index=255)
 
-    for epoch in range(epochs):
+    for epoch in range(continue_epoch, epochs):
         net.train()
 
         epoch_loss = 0
@@ -119,7 +123,6 @@ def train_net(net,
                     'the images are loaded correctly.'
 
                 imgs = imgs.to(device=device, dtype=torch.float32)
-                # torch.uint8
                 true_masks = true_masks.to(device=device, dtype=torch.long)
                 masks_pred = net(imgs)  # torch.Size([b, c, h, w])
                 loss = criterion(masks_pred, true_masks)
@@ -134,7 +137,7 @@ def train_net(net,
                 optimizer.step()
 
                 pbar.update(imgs.shape[0])
-                global_step += 1
+                global_step += 5
                 if global_step % (n_train // (10 * batch_size)) == 0:
                     for tag, value in net.named_parameters():
                         tag = tag.replace('.', '/')
@@ -163,7 +166,7 @@ def train_net(net,
             except OSError:
                 pass
             torch.save(net.state_dict(),
-                       dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
+                       dir_checkpoint + f'{cp_name}_epoch{epoch + 1}.pth')
             logging.info(f'Checkpoint {epoch + 1} saved !')
 
     writer.close()
@@ -172,11 +175,13 @@ def train_net(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=100,
+    parser.add_argument('-e', '--epochs', type=int, default=100,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
+    parser.add_argument('-c', '--continue-epoch', type=int, default=0,
+                        help='Continue training starting with the epoch', dest='continue_epoch')
+    parser.add_argument('-b', '--batch-size', type=int, nargs='?', default=1,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
     parser.add_argument('-f', '--load', dest='load', type=str, default=False,
                         help='Load model from a .pth file')
@@ -184,6 +189,8 @@ def get_args():
                         help='Downscaling factor of the images')
     parser.add_argument('-d', '--device', dest='device', type=str, default='',
                         help='Appoint device to train')
+    parser.add_argument('-n', '--checkpoint-name', dest='checkpointname', type=str, default='CP',
+                        help='set saved checkpoint name')
 
     return parser.parse_args()
 
