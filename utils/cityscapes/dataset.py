@@ -1,10 +1,14 @@
-from os import listdir, path
-import numpy as np
-from glob import glob
-import torch
-from torch.utils.data import Dataset
 import logging
+from glob import glob
+from os import listdir, path
+
+import cv2
+import numpy as np
+import torch
 from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+
 # from utils.cityscapes.labels import color2id
 
 
@@ -34,65 +38,31 @@ class CityscapesDataset(Dataset):
         return len(self.data)
 
 
-    def resize(self, pil_img):
-        w, h = pil_img.size
-        newW, newH = int(self.scale * w), int(self.scale * h)
-        assert newW > 0 and newH > 0, 'Scale is too small'
-        pil_img = pil_img.resize((newW, newH), Image.NEAREST)
-        return pil_img
-
-
-    # def mask2label(self, mask):
-    #     new_mask = np.zeros((19,) + mask.shape[0:2])
-
-    #     for y in range(mask.shape[0]):
-    #         for x in range(mask.shape[1]):
-    #             color = mask[y][x]
-    #             if tuple(color) not in color2id:
-    #                 continue
-    #             new_mask[color2id[color]][y][x] = 1
-    #     return new_mask
-
-
-
-    # def mask2label(self, mask):
-    #     height = mask.shape[0]
-    #     width = mask.shape[1]
-    #     new_mask = np.zeros((height, width))
-
-    #     for y in range(height):
-    #         for x in range(width):
-    #             color = mask[y][x]
-    #             if tuple(color) not in color2id:
-    #                 continue
-    #             new_mask[y][x] = color2id[color]
-    #     return new_mask
-
-
-    def transpose(self, img):
-        img_trans = img.transpose((2, 0, 1))
-        if img_trans.max() > 1:
-            img_trans = img_trans / 255
-        return img_trans
+    def resize(self, img_arr: np.ndarray):
+        return cv2.resize(img_arr, None,
+                          fx=self.scale, fy=self.scale,
+                          interpolation=cv2.INTER_NEAREST)
 
 
     def __getitem__(self, i):
         img_file, mask_file = self.data[i]
 
-        img = Image.open(img_file)
-        mask = Image.open(mask_file)
+        # get img array
+        img = cv2.imread(img_file, flags=cv2.IMREAD_COLOR)  # shape (h, w, 3)
+        mask = cv2.imread(mask_file, flags=cv2.IMREAD_GRAYSCALE)  # shape (h, w)
 
-        img = self.resize(img)
+        # resize & to tensor
+        new_size = tuple(int(size * self.scale) for size in img.shape[0:2])
+        tf = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize(new_size)
+        ])
+        img_tensor = tf(img)
+
         mask = self.resize(mask)
+        mask_tensor = torch.from_numpy(mask).type(torch.ByteTensor)
 
-        img_arr = np.array(img)
-        mask_arr = np.array(mask)
-
-        img_arr = self.transpose(img_arr)
-
-        img_tensor = torch.from_numpy(img_arr).type(torch.FloatTensor)
-        mask_tensor = torch.from_numpy(mask_arr).type(torch.FloatTensor)
         return {
-            'image': img_tensor,
-            'mask': mask_tensor
+            'image': img_tensor,  # torch.Size([3, h, w])
+            'mask': mask_tensor  # torch.Size([h, w])
         }
