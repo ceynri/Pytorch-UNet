@@ -13,6 +13,7 @@ from utils.data_vis import plot_img_and_mask
 from utils.cityscapes.dataset import CityscapesDataset
 from utils.cityscapes.labels import trainId2label
 
+
 def main():
     args = get_args()
     in_files = args.input
@@ -81,8 +82,9 @@ def predict_img(net,
 
 
 def preprocess(pil_img, scale_factor):
+    width, height = pil_img.size
     tf = transforms.Compose([
-        transforms.Resize(tuple(int(s * scale_factor) for s in pil_img.size)),
+        transforms.Resize((int(width * scale_factor), int(height * scale_factor))),
         transforms.ToTensor()
     ])
     img = tf(pil_img)
