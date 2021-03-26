@@ -7,5 +7,6 @@ checkpoints/
 SUBMISSION*
 venv/
 runs/
-test/
+test
 .vscode
+tmp

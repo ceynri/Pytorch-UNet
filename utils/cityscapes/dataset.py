@@ -63,6 +63,6 @@ class CityscapesDataset(Dataset):
         mask_tensor = torch.from_numpy(mask).type(torch.ByteTensor)
 
         return {
-            'image': img_tensor,  # torch.Size([3, h, w])
-            'mask': mask_tensor  # torch.Size([h, w])
+            'image': img_tensor,  # torch.Size([3, h, w]), value [0.0, 1.0]
+            'mask': mask_tensor  # torch.Size([h, w]), value [0, 255]
         }

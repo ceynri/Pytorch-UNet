@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 
+import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -33,11 +34,11 @@ def main():
     for i, fn in enumerate(in_files):
         logging.info("\nPredicting image {} ...".format(fn))
 
-        img = Image.open(fn)
+        img = cv2.imread(fn, flags=cv2.IMREAD_COLOR)  # shape (h, w, 3)
 
         mask = predict_img(net=net,
                            full_img=img,
-                           scale_factor=args.scale,
+                           scale=args.scale,
                            out_threshold=args.mask_threshold,
                            device=device)
 
@@ -53,50 +54,52 @@ def main():
 
 
 def predict_img(net,
-                full_img,
+                full_img: np.ndarray,
                 device,
-                scale_factor=1,
+                scale=1,
                 out_threshold=0.5):
     net.eval()
 
-    img = preprocess(full_img, scale_factor)
-    img = img.unsqueeze(0)
+    img = preprocess(full_img, scale)
     img = img.to(device=device, dtype=torch.float32)
     with torch.no_grad():
         output = net(img)
     probs = F.softmax(output, dim=1)
-    probs = probs.squeeze(0)
+    probs = probs.squeeze(0)  # torch.Size([c, h, w])
+    probs_arr = probs.cpu().numpy()
 
-    tf = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize(full_img.size[1]),
-        transforms.ToTensor()
-    ])
+    # tf = transforms.Compose([
+    #     transforms.ToTensor(),
+    #     transforms.Resize(full_img.size[1]),
+    # ])
 
-    output = output.squeeze(0).cpu()
-    probs_arr = probs.squeeze().cpu().numpy()
     thres_probs = probs_arr * (probs_arr > out_threshold)
     color_arr = channel2color(thres_probs)
     result = Image.fromarray(color_arr.astype('uint8'))
     return result
 
 
-def preprocess(pil_img, scale_factor):
-    width, height = pil_img.size
+def preprocess(img_arr: np.ndarray, scale) -> torch.Tensor:
+    '''Process the image to make it can input the network
+
+    Args:
+        img_arr (np.ndarray)
+
+    Returns:
+        tensor, torch.Size([1, c, h, w])
+    '''
+    height, width, _  = img_arr.shape
     tf = transforms.Compose([
-        transforms.Resize((int(width * scale_factor), int(height * scale_factor))),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Resize((int(height * scale), int(width * scale))),
     ])
-    img = tf(pil_img)
-    img_arr = img.numpy()
-    if img_arr.max() > 1:
-        img_arr = img_arr / 255
-    img_tensor = torch.from_numpy(img_arr).type(torch.FloatTensor)
+    img_tensor = tf(img_arr)
+    img_tensor = img_tensor.unsqueeze(0)
     return img_tensor
 
 
 def channel2color(probs:np.ndarray):
-    probs_trans = probs.transpose((2, 1, 0))
+    probs_trans = probs.transpose((1, 2, 0))
     height, width, n_channels = probs_trans.shape
     color_result = np.zeros((height, width, 3))
     for y in range(height):
