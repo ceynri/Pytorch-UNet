@@ -111,6 +111,8 @@ name2label      = { label.name    : label for label in labels           }
 id2label        = { label.id      : label for label in labels           }
 # trainId to label object
 trainId2label   = { label.trainId : label for label in reversed(labels) }
+# id2trainid
+id2trainid   = { label.id      : label.trainId for label in labels   }
 # category to list of label objects
 category2labels = {}
 for label in labels:
