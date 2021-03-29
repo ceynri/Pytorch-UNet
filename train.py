@@ -16,16 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.cityscapes.dataset import CityscapesDataset
 from torch.utils.data import DataLoader
 
-# dir_cityscapes = '/PATH_TO_CITYSCAPES/'
-dir_cityscapes = '/data/chenyangrui/cityscapes/'
-dir_imgs = os.path.join(dir_cityscapes, 'leftImg8bit_trainvaltest/leftImg8bit/')
-dir_masks = os.path.join(dir_cityscapes, 'gtFine_trainvaltest/gtFine/')
-dir_imgs_train = os.path.join(dir_imgs, 'train')
-dir_masks_train = os.path.join(dir_masks, 'train')
-dir_imgs_val = os.path.join(dir_imgs, 'val')
-dir_masks_val = os.path.join(dir_masks, 'val')
-dir_checkpoint = '/data/chenyangrui/unet/checkpoints/'
-
+from config import *
 
 def main():
     # prepare
@@ -37,7 +28,7 @@ def main():
     logging.info(f'Using device {device}')
 
     # get net
-    net = UNet(n_channels=3, n_classes=19, bilinear=True)
+    net = UNet(n_channels=3, n_classes=num_classes, bilinear=True)
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'
@@ -63,7 +54,8 @@ def main():
                   lr=args.lr,
                   device=device,
                   img_scale=args.scale,
-                  cp_name=args.checkpointname)
+                  cp_name=args.checkpointname,
+                  add_extra=args.add_extra)
     except KeyboardInterrupt:
         torch.save(net.state_dict(), './tmp/INTERRUPTED.pth')
         logging.info('Saved interrupt')
@@ -75,16 +67,18 @@ def main():
 
 def train_net(net,
               device,
+              
               epochs=5,
               continue_epoch=0,
               batch_size=1,
               lr=0.001,
               save_cp=True,
               img_scale=1,
-              cp_name='CP'):
+              cp_name='CP',
+              add_extra=False):
     # load dataset
-    train_dataset = CityscapesDataset(dir_imgs_train, dir_masks_train, scale=img_scale)
-    val_dataset = CityscapesDataset(dir_imgs_val, dir_masks_val, scale=img_scale)
+    train_dataset = CityscapesDataset('train', scale=img_scale, extra=add_extra)
+    val_dataset = CityscapesDataset('val', scale=img_scale)
     n_train = len(train_dataset)
     n_val = len(val_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
@@ -116,16 +110,16 @@ def train_net(net,
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
                 imgs = batch['image']  # torch.Size([b, c, h, w])
-                true_masks = batch['mask']  # torch.Size([b, h, w])
+                masks_true = batch['mask']  # torch.Size([b, h, w])
                 assert imgs.shape[1] == net.n_channels, \
                     f'Network has been defined with {net.n_channels} input channels, ' \
                     f'but loaded images have {imgs.shape[1]} channels. Please check that ' \
                     'the images are loaded correctly.'
 
                 imgs = imgs.to(device=device, dtype=torch.float32)
-                true_masks = true_masks.to(device=device, dtype=torch.long)
+                masks_true = masks_true.to(device=device, dtype=torch.long)
                 masks_pred = net(imgs)  # torch.Size([b, c, h, w])
-                loss = criterion(masks_pred, true_masks)
+                loss = criterion(masks_pred, masks_true)
                 epoch_loss += loss.item()
                 writer.add_scalar('Loss/train', loss.item(), global_step)
 
@@ -137,7 +131,7 @@ def train_net(net,
                 optimizer.step()
 
                 pbar.update(imgs.shape[0])
-                global_step += 5
+                global_step += 1
                 if global_step % (n_train // (10 * batch_size)) == 0:
                     for tag, value in net.named_parameters():
                         tag = tag.replace('.', '/')
@@ -147,26 +141,20 @@ def train_net(net,
                     scheduler.step(val_score)
                     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
 
-                    if net.n_classes > 1:
-                        logging.info('Validation cross entropy: {}'.format(val_score))
-                        writer.add_scalar('Loss/test', val_score, global_step)
-                    else:
-                        logging.info('Validation Dice Coeff: {}'.format(val_score))
-                        writer.add_scalar('Dice/test', val_score, global_step)
+                    logging.info('Validation cross entropy: {}'.format(val_score))
+                    writer.add_scalar('Loss/test', val_score, global_step)
 
                     writer.add_images('images', imgs, global_step)
-                    if net.n_classes == 1:
-                        writer.add_images('masks/true', true_masks, global_step)
-                        writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
 
         if save_cp:
+            save_file = os.path.join(dir_checkpoint, f'{cp_name}_epoch{epoch + 1}.pth')
+            save_path = os.path.dirname(save_file)
             try:
-                os.mkdir(dir_checkpoint)
+                os.makedirs(save_path)
                 logging.info('Created checkpoint directory')
             except OSError:
                 pass
-            torch.save(net.state_dict(),
-                       dir_checkpoint + f'{cp_name}_epoch{epoch + 1}.pth')
+            torch.save(net.state_dict(), save_file)
             logging.info(f'Checkpoint {epoch + 1} saved !')
 
     writer.close()
@@ -175,7 +163,7 @@ def train_net(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-e', '--epochs', type=int, default=100,
+    parser.add_argument('-e', '--epochs', type=int, default=50,
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-c', '--continue-epoch', type=int, default=0,
                         help='Continue training starting with the epoch', dest='continue_epoch')
@@ -183,7 +171,7 @@ def get_args():
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
-    parser.add_argument('-f', '--load', dest='load', type=str, default=False,
+    parser.add_argument('-f', '--load', dest='load', type=str,
                         help='Load model from a .pth file')
     parser.add_argument('-s', '--scale', dest='scale', type=float, default=1,
                         help='Downscaling factor of the images')
@@ -191,6 +179,8 @@ def get_args():
                         help='Appoint device to train')
     parser.add_argument('-n', '--checkpoint-name', dest='checkpointname', type=str, default='CP',
                         help='set saved checkpoint name')
+    parser.add_argument('-a', '--add-extra', dest='add_extra', type=bool, default=False,
+                        help='add coarse train dataset')
 
     return parser.parse_args()
 
