@@ -50,5 +50,11 @@ def eval_net(net, loader, device, type='cross_entropy', n_classes: int = num_cla
     if type == 'cross_entropy':
         return total / n_val
     elif type == 'miou':
-        mIoUs = per_class_iou(hist)
-        return np.nanmean(mIoUs)
+        ious = per_class_iou(hist)
+        return np.nanmean(ious), ious, hist
+
+
+if __name__ == '__main__':
+    hist = np.loadtxt('./test/hist/extra50_scale50_merge.csv', delimiter=',')
+    ious = per_class_iou(hist)
+    print(np.nanmean(ious))

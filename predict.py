@@ -11,7 +11,7 @@ from torchvision import transforms
 
 from unet import UNet
 from utils.data_vis import plot_img_and_mask
-from utils.cityscapes.labels import trainId2label
+from dataset.cityscapes.labels import trainId2label
 
 from config import num_classes
 
@@ -38,6 +38,8 @@ def main():
         logging.info(f'\nPredicting image {filename} ...')
 
         img = cv2.imread(filename, flags=cv2.IMREAD_COLOR)  # shape (h, w, 3)
+        # img = Image.open(filename)
+        # img = np.array(img)
 
         pred = predict_img(net=net,
                            full_img=img,
@@ -45,11 +47,15 @@ def main():
                            out_threshold=args.mask_threshold,
                            device=device)
 
+        color = cv2.cvtColor(np.asarray(pred['color']),cv2.COLOR_RGB2BGR)
+        mask = cv2.addWeighted(img, 0.5, color, 0.5, 0)
+
         if not args.no_save:
             out_filename = out_files[i]
             path, ext = os.path.splitext(out_filename)
             pred['color'].save(f'{path}_color{ext}')
             pred['classes'].save(f'{path}_classes{ext}')
+            cv2.imwrite(f'{path}_mask{ext}', mask)
 
             logging.info(
                 f'Mask saved to {path}_color{ext}, {path}_classes{ext}')
@@ -84,6 +90,7 @@ def predict_img(net, full_img: np.ndarray, device, scale=1, out_threshold=0.5):
     classes_arr = restore(classes_arr, full_img.shape[:2])
     color_pil = Image.fromarray(color_arr.astype('uint8'))
     classes_pil = Image.fromarray(classes_arr.astype('uint8'))
+
     return {
         'color': color_pil,
         'classes': classes_pil,
@@ -186,7 +193,7 @@ def get_args():
         '-t',
         type=float,
         help='Minimum probability value to consider a mask pixel white',
-        default=0.5)
+        default=0.0)
     parser.add_argument('--scale',
                         '-s',
                         type=float,
@@ -215,4 +222,5 @@ def get_output_filenames(args):
 
 
 if __name__ == '__main__':
+    # python predict.py -m /data/chenyangrui/unet/checkpoints/fine/deeper/0.5/cp_epoch10.pth -i test/img/frankfurt_000000_000294_leftImg8bit.png -o test/pred/frankfurt_000000_000294_pred_deeper_10.png -t 0 -s 0.5
     main()

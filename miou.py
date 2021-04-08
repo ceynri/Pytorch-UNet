@@ -1,5 +1,6 @@
 import argparse
 import logging
+from os import path
 
 import cv2
 import numpy as np
@@ -8,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from config import *
 from unet import UNet
-from utils.cityscapes.dataset import CityscapesDataset
+from dataset.cityscapes.dataset import CityscapesDataset
 
 
 def fast_hist(pred: np.ndarray, gt: np.ndarray, n: int):
@@ -50,26 +51,29 @@ def batch_calc(args):
     from eval import eval_net
 
     # get net
-    net = UNet(n_channels=3, n_classes=num_classes)
+    net = UNet(n_channels=3, n_classes=num_classes, bilinear=True)
 
     logging.info(f'Loading model {args.model}')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if args.device:
+        device = torch.device(args.device)
     logging.info(f'Using device {device}')
     net.to(device=device)
     net.load_state_dict(torch.load(args.model, map_location=device))
     logging.info('Model loaded !')
 
-    val_dataset = CityscapesDataset(dir_imgs_val,
-                                    dir_masks_val,
-                                    scale=args.scale)
+    val_dataset = CityscapesDataset(type='val', scale=args.scale)
     val_loader = DataLoader(val_dataset,
                             batch_size=args.batchsize,
                             shuffle=False,
-                            num_workers=8,
+                            num_workers=4,
                             pin_memory=True,
                             drop_last=True)
-    miou = eval_net(net, val_loader, device, type='miou')
-    logging.info(f'total mIoU value: {miou}')
+    miou, ious, hist = eval_net(net, val_loader, device, type='miou')
+    logging.info(f'total mIoU value: {miou}\n'
+                 f'per category\'s IoU value: \n{ious}\n'
+                 f'hist save as {args.histname}')
+    np.savetxt(path.join('./test/hist/', args.histname), hist, delimiter=',')
     return miou
 
 
@@ -97,23 +101,22 @@ def get_args():
 
     parser.add_argument('-i',
                         '--single',
-                        type=bool,
+                        action='store_true',
                         default=False,
                         help='Whether to calculate only one image',
                         dest='single')
     # 存放验证集分割标签的文件夹
     parser.add_argument('-g',
                         '--gt',
-                        dest="gt",
+                        dest='gt',
                         type=str,
                         help='ground true image\'s directory or file path')
     # 存放验证集分割结果的文件夹
     parser.add_argument('-p',
                         '--pred',
-                        dest="pred",
+                        dest='pred',
                         type=str,
                         help='pred images\'s directory or file path')
-
     '''以下是批处理的参数'''
 
     parser.add_argument('-b',
@@ -134,8 +137,21 @@ def get_args():
                         type=float,
                         default=1,
                         help='Downscaling factor of the images')
+    parser.add_argument('-d',
+                        '--device',
+                        dest='device',
+                        type=str,
+                        default='',
+                        help='Appoint device to run')
+    parser.add_argument('-n',
+                        '--histname',
+                        dest='histname',
+                        type=str,
+                        default='hist.csv',
+                        help='hist array save file name')
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
+    # python miou.py -m /data/chenyangrui/unet/checkpoints/fine/0.5/cp_epoch10.pth -s 0.5 -n hist.csv -d cuda:5
