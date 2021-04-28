@@ -58,13 +58,6 @@ def main():
                          f'{path}_classes{ext}, '
                          f'{path}_mask{ext}')
 
-        # if args.viz:
-        #     logging.info(f'Visualizing results for image {filename}, close to continue ...')
-        #     plot_img_and_mask(img, pred['color'])
-
-
-# def calc_probs
-
 
 def predict_img(net, full_img: np.ndarray, device, scale=1, out_threshold=0.5):
     net.eval()
@@ -176,11 +169,6 @@ def get_args():
                         metavar='INPUT',
                         nargs='+',
                         help='Filenames of ouput images')
-    parser.add_argument('--viz',
-                        '-v',
-                        action='store_true',
-                        help='Visualize the images as they are processed',
-                        default=False)
     parser.add_argument('--no-save',
                         '-n',
                         action='store_true',
