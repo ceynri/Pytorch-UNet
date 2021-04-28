@@ -216,7 +216,7 @@ def get_args():
                         '--scale',
                         dest='scale',
                         type=float,
-                        default=1,
+                        default=0.5,
                         help='Downscaling factor of the images')
     parser.add_argument('-d',
                         '--device',
