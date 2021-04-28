@@ -9,11 +9,9 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from unet import UNet
-from utils.data_vis import plot_img_and_mask
-from dataset.cityscapes.labels import trainId2label
-
 from config import num_classes
+from dataset.cityscapes.labels import trainId2label
+from unet import UNet
 
 
 def main():
@@ -38,8 +36,6 @@ def main():
         logging.info(f'\nPredicting image {filename} ...')
 
         img = cv2.imread(filename, flags=cv2.IMREAD_COLOR)  # shape (h, w, 3)
-        # img = Image.open(filename)
-        # img = np.array(img)
 
         pred = predict_img(net=net,
                            full_img=img,
@@ -47,7 +43,7 @@ def main():
                            out_threshold=args.mask_threshold,
                            device=device)
 
-        color = cv2.cvtColor(np.asarray(pred['color']),cv2.COLOR_RGB2BGR)
+        color = cv2.cvtColor(np.asarray(pred['color']), cv2.COLOR_RGB2BGR)
         mask = cv2.addWeighted(img, 0.5, color, 0.5, 0)
 
         if not args.no_save:
@@ -57,8 +53,10 @@ def main():
             pred['classes'].save(f'{path}_classes{ext}')
             cv2.imwrite(f'{path}_mask{ext}', mask)
 
-            logging.info(
-                f'Mask saved to {path}_color{ext}, {path}_classes{ext}')
+            logging.info('Mask saved to '
+                         f'{path}_color{ext}, '
+                         f'{path}_classes{ext}, '
+                         f'{path}_mask{ext}')
 
         # if args.viz:
         #     logging.info(f'Visualizing results for image {filename}, close to continue ...')
@@ -210,7 +208,7 @@ def get_output_filenames(args):
     if not args.output:
         for f in in_files:
             pathsplit = os.path.splitext(f)
-            out_files.append('{}_OUT{}'.format(pathsplit[0], pathsplit[1]))
+            out_files.append(f'{pathsplit[0]}_OUT{pathsplit[1]}')
     elif len(in_files) != len(args.output):
         logging.error(
             'Input files and output files are not of the same length')
@@ -222,5 +220,4 @@ def get_output_filenames(args):
 
 
 if __name__ == '__main__':
-    # python predict.py -m /data/chenyangrui/unet/checkpoints/fine/deeper/0.5/cp_epoch10.pth -i test/img/frankfurt_000000_000294_leftImg8bit.png -o test/pred/frankfurt_000000_000294_pred_deeper_10.png -t 0 -s 0.5
     main()

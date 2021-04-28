@@ -8,8 +8,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from config import *
-from unet import UNet
 from dataset.cityscapes.dataset import CityscapesDataset
+from unet import UNet
 
 
 def fast_hist(pred: np.ndarray, gt: np.ndarray, n: int):
@@ -154,4 +154,3 @@ def get_args():
 
 if __name__ == '__main__':
     main()
-    # python miou.py -m /data/chenyangrui/unet/checkpoints/fine/0.5/cp_epoch10.pth -s 0.5 -n hist.csv -d cuda:5

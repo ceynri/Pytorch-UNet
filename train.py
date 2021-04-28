@@ -3,21 +3,18 @@ import logging
 import os
 import sys
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
-from tqdm import tqdm
 from torch.backends import cudnn
-
-from eval import eval_net
-from unet import UNet
-
-from torch.utils.tensorboard import SummaryWriter
-from dataset.cityscapes.dataset import CityscapesDataset
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from config import *
+from dataset.cityscapes.dataset import CityscapesDataset
+from eval import eval_net
+from unet import UNet
 
 
 def main():
@@ -115,7 +112,6 @@ def train_net(net,
                               lr=lr,
                               weight_decay=1e-8,
                               momentum=0.9)
-    # optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-8)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                      'min',
                                                      patience=2)
@@ -245,6 +241,4 @@ def get_args():
 
 
 if __name__ == '__main__':
-    # python train.py -s 0.5 -b 3 -d cuda:6 -n fine/deconv/0.5/cp
-    # python train.py -s 0.75 -d cuda:6 -n extra/0.75/cp -a
     main()
