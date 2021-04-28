@@ -1,43 +1,22 @@
 # UNet: semantic segmentation with PyTorch
 
-This project is forked from <https://github.com/milesial/Pytorch-UNet> and made some adjustments and improvements to adapt to the cityscape dataset.
+This project is forked from <https://github.com/milesial/Pytorch-UNet> and made some adjustments and improvements to adapt to the **cityscape dataset**.
 
 Provide only a minimal introduction and support.
+
+![Network structure.jpg](https://i.loli.net/2021/04/28/aBc4S2k8gHNOEd7.jpg)
+
+## Result
+
+![Result.jpg](https://i.loli.net/2021/04/28/tpzXQyLMTYbshr9.jpg)
+
+![heatmap.png](https://i.loli.net/2021/04/28/fVusCawXbAQqmyd.png)
+
+mIoU: 0.432
 
 ## Usage
 
 **Note : Use Python 3.6 or newer**
-
-### Prediction
-
-After training your model and saving it to MODEL.pth, you can easily test the output masks on your images via the CLI.
-
-To predict a single image and save it:
-
-`python predict.py -i image.jpg -o output.jpg`
-
-```shell script
-> python predict.py -h
-usage: predict.py [-h] [--model FILE] --input INPUT [INPUT ...] [--output INPUT [INPUT ...]] [--no-save] [--mask-threshold MASK_THRESHOLD] [--scale SCALE]
-
-Predict masks from input images
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --model FILE, -m FILE
-                        Specify the file in which the model is stored (default: MODEL.pth)
-  --input INPUT [INPUT ...], -i INPUT [INPUT ...]
-                        filenames of input images (default: None)
-  --output INPUT [INPUT ...], -o INPUT [INPUT ...]
-                        Filenames of ouput images (default: None)
-  --no-save, -n         Do not save the output masks (default: False)
-  --mask-threshold MASK_THRESHOLD, -t MASK_THRESHOLD
-                        Minimum probability value to consider a mask pixel white (default: 0.0)
-  --scale SCALE, -s SCALE
-                        Scale factor for the input images (default: 0.5)
-```
-
-You can specify which model file to use with `--model MODEL.pth`.
 
 ### Training
 
@@ -69,7 +48,40 @@ optional arguments:
 
 By default, the `scale` is 1, so if you wish to obtain better results (but use more memory), set it to 1.
 
-The input images and target masks path set by config.py.
+Cityscapes dataset download at <https://www.cityscapes-dataset.com/>
+
+The input images and target masks path is set by config.py.
+
+### Prediction
+
+After training your model and saving it to MODEL.pth, you can easily test the output masks on your images via the CLI.
+
+To predict a single image and save it:
+
+`python predict.py -i image.jpg -o output.jpg`
+
+```shell script
+> python predict.py -h
+usage: predict.py [-h] [--model FILE] --input INPUT [INPUT ...] [--output INPUT [INPUT ...]] [--no-save] [--mask-threshold MASK_THRESHOLD] [--scale SCALE]
+
+Predict masks from input images
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model FILE, -m FILE
+                        Specify the file in which the model is stored (default: MODEL.pth)
+  --input INPUT [INPUT ...], -i INPUT [INPUT ...]
+                        filenames of input images (default: None)
+  --output INPUT [INPUT ...], -o INPUT [INPUT ...]
+                        Filenames of ouput images (default: None)
+  --no-save, -n         Do not save the output masks (default: False)
+  --mask-threshold MASK_THRESHOLD, -t MASK_THRESHOLD
+                        Minimum probability value to consider a mask pixel white (default: 0.0)
+  --scale SCALE, -s SCALE
+                        Scale factor for the input images (default: 0.5)
+```
+
+You can specify which model file to use with `--model MODEL.pth`.
 
 ## Tensorboard
 
