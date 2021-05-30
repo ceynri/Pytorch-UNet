@@ -4,13 +4,13 @@ This project is forked from <https://github.com/milesial/Pytorch-UNet> and made 
 
 Provide only a minimal introduction and support.
 
-![Network structure.jpg](https://i.loli.net/2021/04/28/aBc4S2k8gHNOEd7.jpg)
+![Network structure.jpg](https://cdn.jsdelivr.net/gh/ceynri/assets/images/1622353139186-aBc4S2k8gHNOEd7.jpg)
 
 ## Result
 
-![Result.jpg](https://i.loli.net/2021/04/28/tpzXQyLMTYbshr9.jpg)
+![Result.jpg](https://cdn.jsdelivr.net/gh/ceynri/assets/images/1622353139187-tpzXQyLMTYbshr9.jpg)
 
-![heatmap.png](https://i.loli.net/2021/04/28/fVusCawXbAQqmyd.png)
+![heatmap.png](https://cdn.jsdelivr.net/gh/ceynri/assets/images/1622353698854-fVusCawXbAQqmyd.png)
 
 mIoU: 0.432
 
